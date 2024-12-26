@@ -57,4 +57,11 @@
     ```
 
 ### Outputs of the demo
+**Comparison between the ground-truth velocity field (top) and reconstructed velocity field by the intensity model (bottom)**
+![Comparison between the ground-truth velocity field (top) and reconstructed velocity field by the intensity model (bottom)](https://github.com/PyDL/SUVEL/blob/main/fig_intensity_model.png)
+
+**Comparison between the ground-truth velocity field (top) and reconstructed velocity field by the magnetic model (bottom)**
+![Comparison between the ground-truth velocity field (top) and reconstructed velocity field by the intensity model (bottom)](https://github.com/PyDL/SUVEL/blob/main/fig_magnetic_model.png)
+
+**Comparison between the ground-truth velocity field (top) and reconstructed velocity field by the hybrid model (bottom)**
 ![Comparison between the ground-truth velocity field (top) and reconstructed velocity field by the intensity model (bottom)](https://github.com/PyDL/SUVEL/blob/main/fig_hybrid_model.png)
