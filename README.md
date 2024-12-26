@@ -12,7 +12,7 @@
 * The following instructions take a typical Linux system as an example, it is similar to use SUVEL in Windows or MacOS
 * One must have a suitable GPU to run SUVEL properly. Although Tensorflow can be run at CPU, it will be very slow.
 
-### Instructions
+### Instructions (Run the demo)
 
 * Install Anaconda (https://www.anaconda.com/download)
 * Clone or download this repository
@@ -55,3 +55,6 @@
     # do prediction using both
     vh = suvel(intensity=intensity, magnetic=magnetic, model_path=suvel_path)
     ```
+
+### Outputs of the demo
+![Comparison between the ground-truth velocity field (top) and reconstructed velocity field by the intensity model (bottom)](https://github.com/PyDL/SUVEL/blob/main/fig_hybrid_model.png)
