@@ -10,7 +10,8 @@
 ### Notes
 * SUVEL takes three consecutive observations of the photospheric intensity in continuum or/and three consecutive observations of the photospheric vertical/LOS magnetic field strength as its input.
 * The following instructions take a typical Linux system as an example, it is similar to use SUVEL in Windows or MacOS
-* One must have a suitable GPU to run SUVEL properly. Although Tensorflow can be run at CPU, it will be very slow.
+* One must have a suitable GPU to run SUVEL properly. Although Tensorflow can be run at CPU, it will be much slower.
+* The models were trained with tensorflow=2.11.1, using a different version of tensorflow will result in slightly different results.
 
 ### Instructions (Run the demo)
 

@@ -1,16 +1,25 @@
 ## The name of the environment matching the repository name
 
 name: suvel
-## I prefer conda-forge packages for my projects
+
+# Default configuration of channels
+# channels:
+# - conda-forge
+# - defaults
+
+# Customized configuration. Change the following to a mirror site you prefer
 channels:
-- conda-forge
-- defaults
+  - https://mirrors.ustc.edu.cn/anaconda/pkgs/main/
+  - https://mirrors.ustc.edu.cn/anaconda/pkgs/free/
+  - defaults
+
 ## Start with Python and include everything you need
 dependencies:
-- python=3.10.11
-- numpy
-- matplotlib
+- python=3.12.8
+- numpy=1.26.4
+- matplotlib=3.9.2
+- cudnn=9.1.1.17
+- tensorflow=2.17.0
+- tensorflow-gpu=2.17.0
+- keras=3.6.0
 - pip
-- keras
-- tensorflow
-- scikit-learn
