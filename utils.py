@@ -7,6 +7,7 @@ Written by Dr. Jiajia Liu @ University of Science and Technology of China
 Revision History
 2024.12.20
     Version 1.0 - Initial release
+    Version 1.1 - Optimizing the logics of generating and merging patches
 
 '''
 
@@ -14,7 +15,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 
-def get_patches(input_array, nx=128, ny=128, stride=20):
+def get_patches(input_array, nx=128, ny=128, stride=30):
     '''
     Given an input_arry, generate patches whose sizes are nx x ny
     stride is the number of pixels
@@ -35,7 +36,6 @@ def get_patches(input_array, nx=128, ny=128, stride=20):
     dummy[0:shape[0], 0:shape[1], :] = input_array
     input_array = dummy
     shape = np.shape(input_array)
-
     # cut into patches if shape[0] > ny or shape[1] > nx
     if shape[0] > ny or shape[1] > nx:
         # zero padding to be the interger multiple of stepx and stepy
@@ -43,8 +43,10 @@ def get_patches(input_array, nx=128, ny=128, stride=20):
         yfactor = 1
         if shape[0] > ny:
             yfactor = int(shape[0] / stepy) + 1
+             
         if shape[1] > nx:
             xfactor = int(shape[1] / stepx) + 1
+            
         dummy = np.zeros((yfactor * ny, xfactor * nx, shape[2]))
         dummy[0:shape[0], 0:shape[1], :] = input_array
         input_array = dummy
@@ -70,7 +72,7 @@ def get_patches(input_array, nx=128, ny=128, stride=20):
     return result_list
 
 
-def merge_patches(patches, original_shape, stride=20):
+def merge_patches(patches, original_shape, stride=30):
     """
     Merge patches back to the original array.
 
@@ -89,44 +91,190 @@ def merge_patches(patches, original_shape, stride=20):
         raise ValueError("The original array must have 3 dimensions!")
     if stride % 2 != 0:
         raise ValueError("Stride must be even!")
+    nx, ny = 128, 128
 
-    half_stride = int(stride / 2)
+    if nx >= original_shape[1] and ny >= original_shape[0]:
+        stride = 20
+        half_stride = int(stride / 2)
+        shape = np.shape(patches)
+        ny = shape[1]
+        nx = shape[2]
+        stepx = nx - stride
+        stepy = ny - stride
+        num_patches = patches.shape[0]
+        # Calculate number of columns and rows of patches based on original extraction logic
+        xfactor = int((original_shape[1] + stepx - 1) / stepx) if original_shape[1] > nx else 1
+        yfactor = int((original_shape[0] + stepy - 1) / stepy) if original_shape[0] > ny else 1
 
-    shape = np.shape(patches)
-    ny = shape[1]
-    nx = shape[2]
-    stepx = nx - stride
-    stepy = ny - stride
-    num_patches = patches.shape[0]
-    # Calculate number of columns and rows of patches based on original extraction logic
-    xfactor = int((original_shape[1] + stepx - 1) / stepx) if original_shape[1] > nx else 1
-    yfactor = int((original_shape[0] + stepy - 1) / stepy) if original_shape[0] > ny else 1
+        # Initialize an array with appropriate size for the merged result
+        merged_array = np.zeros(original_shape)
+        patch_index = 0
+        for row_index, r in enumerate(range(yfactor)):
+            row_start = r * stepy
+            row_end = min(row_start + ny, original_shape[0])
 
-    # Initialize an array with appropriate size for the merged result
-    merged_array = np.zeros(original_shape)
-    patch_index = 0
-    for row_index, r in enumerate(range(yfactor)):
-        row_start = r * stepy
-        row_end = min(row_start + ny, original_shape[0])
-
-        for col_index, c in enumerate(range(xfactor)):
-            col_start = c * stepx
-            col_end = min(col_start + nx, original_shape[1])
-            if row_index == 0:
-                if patch_index == 0:
-                    merged_array[row_start:row_end, col_start:col_end, ...] = patches[patch_index, :row_end - row_start, :col_end - col_start, ...]
+            for col_index, c in enumerate(range(xfactor)):
+                col_start = c * stepx
+                col_end = min(col_start + nx, original_shape[1])
+                if row_index == 0:
+                    if patch_index == 0:
+                        merged_array[row_start:row_end, col_start:col_end, ...] = patches[patch_index, :row_end - row_start, :col_end - col_start, ...]
+                    else:
+                        merged_array[row_start:row_end, col_start + half_stride:col_end, ...] = patches[patch_index, :row_end - row_start, half_stride:col_end - col_start, ...]
+                        
                 else:
-                    merged_array[row_start:row_end, col_start + half_stride:col_end, ...] = patches[patch_index, :row_end - row_start, half_stride:col_end - col_start, ...]
+                    if col_index == 0:
+                        merged_array[row_start+half_stride:row_end, col_start:col_end, ...] = patches[patch_index, half_stride:row_end - row_start, :col_end - col_start, ...]
+                    else:
+                        merged_array[row_start + half_stride:row_end, col_start + half_stride:col_end, ...] = patches[patch_index, half_stride:row_end - row_start, half_stride:col_end - col_start, ...]
+                patch_index += 1
+                col_index = col_index + 1
+            row_index = row_index + 1
+        return merged_array
+    else:
+        shape = np.shape(patches)
+        ny = shape[1]
+        nx = shape[2]
+        stepx = nx - stride
+        stepy = ny - stride
+        num_patches = patches.shape[0]
+        # Calculate number of columns and rows of patches based on original extraction logic
+        xfactor = int((original_shape[1] + stepx - 1) / stepx) if original_shape[1] > nx else 1
+        yfactor = int((original_shape[0] + stepy - 1) / stepy) if original_shape[0] > ny else 1
+        xfactor_1 = int((original_shape[1] - 118) / 98) + 2 if original_shape[1] > nx else 1
+        yfactor_1 = int((original_shape[0] - 118) / 98) + 2 if original_shape[0] > ny else 1
+
+        # Initialize an array with appropriate size for the merged result
+        merged_array = np.zeros(original_shape)
+        patch_index = 0
+        for row_index, r in enumerate(range(yfactor_1)):
+
+            for col_index, c in enumerate(range(xfactor_1)):
+                
+                if row_index == 0:
+                    row_start = r * stepy
+                    row_end = min(row_start + 108, original_shape[0])
                     
-            else:
-                if col_index == 0:
-                    merged_array[row_start+half_stride:row_end, col_start:col_end, ...] = patches[patch_index, half_stride:row_end - row_start, :col_end - col_start, ...]
+                    patch_index = xfactor * r + c
+                    if patch_index == 0:
+                        col_start = c * stepx
+                        col_end = min(col_start + 108, original_shape[1])
+
+                        merged_array[row_start:row_end, col_start:col_end, ...] = patches[patch_index, :row_end - row_start, :col_end - col_start, ...]
+                        
+                        if row_end < original_shape[0] and col_end < original_shape[1]:
+                            col_start_1 = col_end
+                            col_end_1 = min(col_start_1 + 10, original_shape[1])
+                            row_start_1 = row_end
+                            row_end_1 = min(row_start_1 + 10, original_shape[0])
+                            merged_array[row_start:row_end, col_start_1:col_end_1, ...] = (patches[patch_index, :row_end - row_start, col_start_1:col_end_1, ...] + patches[patch_index + 1, :row_end - row_start, col_start_1-(c+1)*stepx:col_end_1-(c+1)*stepx, ...]) / 2
+                            merged_array[row_start_1:row_end_1, col_start:col_end, ...] = (patches[patch_index, row_start_1:row_end_1, :col_end-col_start, ...] + patches[patch_index + xfactor, row_start_1-(r+1)*stepy:row_end_1-(r+1)*stepy, :col_end-col_start, ...]) / 2
+                            merged_array[row_start_1:row_end_1, col_start_1:col_end_1, ...] = (patches[patch_index, row_start_1:row_end_1, col_start_1:col_end_1, ...] + patches[patch_index + 1, row_start_1:row_end_1, col_start_1-(c+1)*stepx:col_end_1-(c+1)*stepx, ...] 
+                                                                                        + patches[patch_index + xfactor, row_start_1-(r+1)*stepy:row_end_1-(r+1)*stepy, col_start_1:col_end_1, ...] 
+                                                                                        + patches[patch_index + xfactor + 1, row_start_1-(r+1)*stepy:row_end_1-(r+1)*stepy, col_start_1-(c+1)*stepx:col_end_1-(c+1)*stepx, ...]) / 4
+
+                        if col_end < original_shape[1] and row_end >= original_shape[0]:
+                            col_start_1 = col_end
+                            col_end_1 = min(col_start_1 + 10, original_shape[1])
+                        
+                            merged_array[row_start:row_end, col_start_1:col_end_1, ...] = (patches[patch_index, row_start:row_end, col_start_1:col_end_1, ...] + patches[patch_index + 1, row_start:row_end, col_start_1-(c+1)*stepx:col_end_1-(c+1)*stepx, ...]) / 2
+
+                        if col_end >= original_shape[1] and row_end < original_shape[0]:
+                            
+                            row_start_1 = row_end
+                            row_end_1 = min(row_start_1 + 10, original_shape[0])
+                            merged_array[row_start_1:row_end_1, col_start:col_end, ...] = (patches[patch_index, row_start_1:row_end_1, col_start:col_end, ...] + patches[patch_index + xfactor, row_start_1-(r+1)*stepy:row_end_1-(r+1)*stepy, col_start:col_end, ...]) / 2
+
+                        
+
+                    else:
+                        col_start = c * stepx + 20
+                        col_end = min(col_start + 88, original_shape[1])
+
+                        merged_array[row_start:row_end, col_start:col_end, ...] = patches[patch_index, :row_end - row_start, 20:20 + col_end - col_start, ...]
+                        if col_end < original_shape[1] and row_end >= original_shape[0]:
+                            col_start_1 =  col_end
+                            col_end_1 = min(col_start_1 + 10, original_shape[1])
+                            merged_array[row_start:row_end, col_start_1:col_end_1, ...] = (patches[patch_index, :row_end - row_start, col_start_1-c*stepx:col_end_1-c*stepx, ...] + patches[patch_index + 1, :row_end - row_start, col_start_1-(c+1)*stepx:col_end_1-(c+1)*stepx, ...]) / 2
+                        
+                        if col_end >= original_shape[1] and row_end < original_shape[0]:
+                            row_start_1 = row_end
+                            row_end_1 = min(row_start_1 + 10, original_shape[0])
+                            merged_array[row_start_1:row_end_1, col_start:col_end, ...] = (patches[patch_index, row_start_1:row_end_1, col_start-c*stepx:col_end-c*stepx, ...] + patches[patch_index + xfactor, row_start_1-(r+1)*stepy:row_end_1-(r+1)*stepy, col_start-c*stepx:col_end-c*stepx, ...]) / 2
+
+                        if row_end < original_shape[0] and col_end < original_shape[1]:
+                            col_start_1 = col_end
+                            col_end_1 = min(col_start_1 + 10, original_shape[1])
+                            row_start_1 = row_end
+                            row_end_1 = min(row_start_1 + 10, original_shape[0])
+
+                            merged_array[row_start:row_end, col_start_1:col_end_1, ...] = (patches[patch_index, :row_end - row_start, col_start_1-c*stepx:col_end_1-c*stepx, ...] + patches[patch_index + 1, :row_end - row_start, col_start_1-(c+1)*stepx:col_end_1-(c+1)*stepx, ...]) / 2
+                            merged_array[row_start_1:row_end_1, col_start:col_end, ...] = (patches[patch_index, row_start_1:row_end_1, col_start-c*stepx:col_end-c*stepx, ...] + patches[patch_index + xfactor, row_start_1-(r+1)*stepy:row_end_1-(r+1)*stepy, col_start-c*stepx:col_end-c*stepx, ...]) / 2
+                            merged_array[row_start_1:row_end_1, col_start_1:col_end_1, ...] = (patches[patch_index, row_start_1:row_end_1, col_start_1-c*stepx:col_end_1-c*stepx, ...] + patches[patch_index + 1, row_start_1:row_end_1, col_start_1-(c+1)*stepx:col_end_1-(c+1)*stepx, ...] 
+                                                                                        + patches[patch_index + xfactor -1, row_start_1-(r+1)*stepy:row_end_1-(r+1)*stepy, col_start_1-c*stepx:col_end_1-c*stepx, ...] 
+                                                                                        + patches[patch_index + xfactor + 1, row_start_1-(r+1)*stepy:row_end_1-(r+1)*stepy, col_start_1-(c+1)*stepx:col_end_1-(c+1)*stepx, ...]) / 4
+                    
+                        
                 else:
-                    merged_array[row_start + half_stride:row_end, col_start + half_stride:col_end, ...] = patches[patch_index, half_stride:row_end - row_start, half_stride:col_end - col_start, ...]
-            patch_index += 1
-            col_index = col_index + 1
-        row_index = row_index + 1
-    return merged_array
+                    patch_index = xfactor * r + c
+
+                    row_start = r * stepy + 20
+                    row_end = min(row_start + 88, original_shape[0]) 
+                    if col_index == 0:
+                        col_start = c * stepx
+                        col_end = min(col_start + 108, original_shape[1])
+
+                        merged_array[row_start:row_end, col_start:col_end, ...] = patches[patch_index, row_start-r*stepy:row_end-r*stepy, :col_end - col_start, ...]
+
+                        if row_end < original_shape[0] and col_end < original_shape[1]:
+                            col_start_1 = col_end
+                            col_end_1 = min(col_start_1 + 10, original_shape[1])
+                            row_start_1 = row_end
+                            row_end_1 = min(row_start_1 + 10, original_shape[0])
+                            merged_array[row_start:row_end, col_start_1:col_end_1, ...] = (patches[patch_index, row_start-r*stepy:row_end-r*stepy, col_start_1-c*stepx:col_end_1-c*stepx, ...] + patches[patch_index + 1, row_start-r*stepy:row_end-r*stepy, col_start_1-(c+1)*stepx:col_end_1-(c+1)*stepx, ...]) / 2
+                            merged_array[row_start_1:row_end_1, col_start:col_end, ...] = (patches[patch_index, row_start_1-r*stepy:row_end_1-r*stepy, col_start-c*stepx:col_end-c*stepx, ...] + patches[patch_index + xfactor, row_start_1-(r+1)*stepy:row_end_1-(r+1)*stepy, col_start-c*stepx:col_end-c*stepx, ...]) / 2
+                            merged_array[row_start_1:row_end_1, col_start_1:col_end_1, ...] = (patches[patch_index, row_start_1-r*stepy:row_end_1-r*stepy, col_start_1-c*stepx:col_end_1-c*stepx, ...] + patches[patch_index + 1, row_start_1-r*stepy:row_end_1-r*stepy, col_start_1-(c+1)*stepx:col_end_1-(c+1)*stepx, ...] 
+                                                                                        + patches[patch_index + xfactor, row_start_1-(r+1)*stepy:row_end_1-(r+1)*stepy, col_start_1-c*stepx:col_end_1-c*stepx, ...] 
+                                                                                        + patches[patch_index + xfactor + 1, row_start_1-(r+1)*stepy:row_end_1-(r+1)*stepy, col_start_1-(c+1)*stepx:col_end_1-(c+1)*stepx, ...]) / 4
+                        
+                        if col_end < original_shape[1] and row_end >= original_shape[0]:
+                            col_start_1 = col_end
+                            col_end_1 = min(col_start_1 + 10, original_shape[1])
+                            merged_array[row_start:row_end, col_start_1:col_end_1, ...] = (patches[patch_index, row_start-r*stepy:row_end-r*stepy, col_start_1-c*stepx:col_end_1-c*stepx, ...] + patches[patch_index + 1, row_start-r*stepy:row_end-r*stepy, col_start_1-(c+1)*stepx:col_end_1-(c+1)*stepx, ...]) / 2
+
+                        if col_end >= original_shape[1] and row_end < original_shape[0]:
+                            row_start_1 = row_end
+                            row_end_1 = min(row_start_1 + 10, original_shape[0])
+                            merged_array[row_start_1:row_end_1, col_start:col_end, ...] = (patches[patch_index, row_start_1-r*stepy:row_end_1-r*stepy, col_start-c*stepx:col_end-c*stepx, ...] + patches[patch_index + xfactor, row_start_1-(r+1)*stepy:row_end_1-(r+1)*stepy, col_start-c*stepx:col_end-c*stepx, ...]) / 2
+                    else:
+                        col_start = c * stepy + 20
+                        col_end = min(col_start + 88, original_shape[1])
+
+                        merged_array[row_start:row_end, col_start:col_end, ...] = patches[patch_index, row_start-r*stepy:row_end-r*stepy, col_start-c*stepx:col_end-c*stepx, ...]
+
+                        if row_end < original_shape[0] and col_end < original_shape[1]:
+                            col_start_1 = col_end
+                            col_end_1 = min(col_start_1 + 10, original_shape[1])
+                            row_start_1 = row_end
+                            row_end_1 = min(row_start_1 + 10, original_shape[0])
+                            merged_array[row_start:row_end, col_start_1:col_end_1, ...] = (patches[patch_index, row_start-r*stepy:row_end-r*stepy, col_start_1-c*stepx:col_end_1-c*stepx, ...] + patches[patch_index + 1, row_start-r*stepy:row_end-r*stepy, col_start_1-(c+1)*stepx:col_end_1-(c+1)*stepx, ...]) / 2
+                            merged_array[row_start_1:row_end_1, col_start:col_end, ...] = (patches[patch_index, row_start_1-r*stepy:row_end_1-r*stepy, col_start-c*stepx:col_end-c*stepx, ...] + patches[patch_index + xfactor, row_start_1-(r+1)*stepy:row_end_1-(r+1)*stepy, col_start-c*stepx:col_end-c*stepx, ...]) / 2
+                            merged_array[row_start_1:row_end_1, col_start_1:col_end_1, ...] = (patches[patch_index, row_start_1-r*stepy:row_end_1-r*stepy, col_start_1-c*stepx:col_end_1-c*stepx, ...] + patches[patch_index + 1, row_start_1-r*stepy:row_end_1-r*stepy, col_start_1-(c+1)*stepx:col_end_1-(c+1)*stepx, ...] 
+                                                                                        + patches[patch_index + xfactor, row_start_1-(r+1)*stepy:row_end_1-(r+1)*stepy, col_start_1-c*stepx:col_end_1-c*stepx, ...] 
+                                                                                        + patches[patch_index + xfactor + 1, row_start_1-(r+1)*stepy:row_end_1-(r+1)*stepy, col_start_1-(c+1)*stepx:col_end_1-(c+1)*stepx, ...]) / 4
+                        
+                        if col_end < original_shape[1] and row_end >= original_shape[0]:
+                            col_start_1 = col_end
+                            col_end_1 = min(col_start_1 + 10, original_shape[1])
+                            merged_array[row_start:row_end, col_start_1:col_end_1, ...] = (patches[patch_index, row_start-r*stepy:row_end-r*stepy, col_start_1-c*stepx:col_end_1-c*stepx, ...] + patches[patch_index + 1, row_start-r*stepy:row_end-r*stepy, col_start_1-(c+1)*stepx:col_end_1-(c+1)*stepx, ...]) / 2
+
+                        if col_end >= original_shape[1] and row_end < original_shape[0]:
+                            row_start_1 = row_end
+                            row_end_1 = min(row_start_1 + 10, original_shape[0])
+                            merged_array[row_start_1:row_end_1, col_start:col_end, ...] = (patches[patch_index, row_start_1-r*stepy:row_end_1-r*stepy, col_start-c*stepx:col_end-c*stepx, ...] + patches[patch_index + xfactor, row_start_1-(r+1)*stepy:row_end_1-(r+1)*stepy, col_start-c*stepx:col_end-c*stepx, ...]) / 2
+                        
+
+        return merged_array
     
 
 def plot_comparison(label, prediction, fig_num=0, ds=1, ds_unit='pixel', subscript='p',

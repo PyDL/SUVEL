@@ -93,9 +93,9 @@ def process_data(intensity=None, magnetic=None):
     magnetic_patches = None
     
     if intensity is not None:
-        intensity_patches = get_patches(intensity, nx=128, ny=128, stride=20)
+        intensity_patches = get_patches(intensity, nx=128, ny=128, stride=30)
     if magnetic is not None:
-        magnetic_patches = get_patches(magnetic, nx=128, ny=128, stride=20)
+        magnetic_patches = get_patches(magnetic, nx=128, ny=128, stride=30)
 
     return intensity_patches, magnetic_patches
 
